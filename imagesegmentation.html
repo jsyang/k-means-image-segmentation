@@ -1,0 +1,153 @@
+<html><script src=yang.js></script><script>
+
+var data={
+	p:undefined,
+	c:[],
+	cID:undefined
+};
+
+var g={
+	c:null,
+	dim:[0,0],
+	idim:[0,0],
+	
+	clear:function(){g.c.clearRect(0,0,g.dim[0],g.dim[1]);},
+
+	fillData:function(){
+		g.c=y.o('c').getContext('2d');
+		var i=new Image();
+		i.src=prompt("Image file name","sf.jpg");
+		g.c.fillText("Loading image...",g.dim[0]>>1,g.dim[1]>>1);
+		i.onload=function(){
+			g.idim=[i.width,i.height];
+			g.c.drawImage(i,0,0);
+			data.p=g.c.getImageData(0,0,g.idim[0],g.idim[1]);
+			data.cID=g.c.createImageData(g.idim[0],g.idim[1]);
+		};
+	},
+	
+	setup:function(){
+		var body=document.body, html=document.documentElement;
+		var height=Math.max(body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight),
+			width=Math.max(body.scrollWidth, body.offsetWidth, html.clientWidth, html.scrollWidth, html.offsetWidth);
+		g.dim=[width,height];
+		document.body.innerHTML+="<canvas style='z-index:1;position:absolute;left:0;top:0;' width="+width+" height="+height+" id=c></canvas>";	
+
+		setTimeout("g.fillData()",280);
+
+		window.onkeypress=function(e){
+			var key=!e.keyCode?e.which:e.keyCode;
+			switch(key){
+						case 49: kM.makeCentroids(prompt("k: # of clusters\nWARNING: k > 100 is NOT recommended!",10));
+				break;	case 50: kM.assignToCentroids(kM.d0);
+				break;	case 51: kM.assignToCentroids(kM.d1);
+				break;	case 52: kM.assignToCentroids(kM.d2);
+				break;	case 53: kM.assignToCentroids(kM.d3);
+				break;	case 54: kM.assignToCentroids(kM.d4);
+				break;	default: window.status=e.keyCode;
+			}
+		}
+	}
+};
+
+var kM={
+
+	// ----------------- space/color distance metrics --------------------------
+	d0:function(p1,p2){															
+		var a=p2[0]-p1[0], b=p2[1]-p1[1],
+			c=p2[2]-p1[2], d=p2[3]-p1[3], e=p2[4]-p1[4];
+		return (c*c + d*d + e*e);												// only color!
+	},
+	d1:function(p1,p2){
+		var a=p2[0]-p1[0], b=p2[1]-p1[1],
+			c=p2[2]-p1[2], d=p2[3]-p1[3], e=p2[4]-p1[4];
+		return ((a*a + b*b)*0.1) + ((c*c + d*d + e*e)*0.9);
+	},
+	d2:function(p1,p2){
+		var a=p2[0]-p1[0], b=p2[1]-p1[1],
+			c=p2[2]-p1[2], d=p2[3]-p1[3], e=p2[4]-p1[4];
+		return ((a*a + b*b)*0.4) + ((c*c + d*d + e*e)*0.6);
+	},
+	d3:function(p1,p2){
+		var a=p2[0]-p1[0], b=p2[1]-p1[1],
+			c=p2[2]-p1[2], d=p2[3]-p1[3], e=p2[4]-p1[4];
+		return ((a*a + b*b)*0.8) + ((c*c + d*d + e*e)*0.2);
+	},
+	d4:function(p1,p2){
+		var a=p2[0]-p1[0], b=p2[1]-p1[1],
+			c=p2[2]-p1[2], d=p2[3]-p1[3], e=p2[4]-p1[4];
+		return a*a + b*b;														// only 2-space
+	},
+	
+	makeCentroids:function(n){													// make starting centroids
+		data.p=g.c.getImageData(0,0,g.idim[0],g.idim[1]);
+		var r=Math.random;
+		while(n--){
+			var cx=(r()*data.p.width)>>0, cy=(r()*data.p.height)>>0;
+			var i=4*(cy*data.p.width+cx);
+			var cRGB=[	cx,cy,
+						data.p.data[i],
+						data.p.data[i+1],
+						data.p.data[i+2]];
+			data.c.push(cRGB);
+		}
+	},
+	
+	assignToCentroids:function(dist){
+		g.clear(); g.c.fillText("Processing...",g.dim[0]>>1,g.dim[1]>>1);
+		var i=data.c.length; var newCentroids=[];
+		while(i--) newCentroids.push([0,0,0,0,0,0]); delete i;
+
+		var n=data.p.width*data.p.height;		
+		while(n--){
+			var mind=Number.POSITIVE_INFINITY,
+				minc=-1,
+				m=data.c.length;
+			var	px=n%data.p.width;					// data pixel (x,y)
+			var py=(n-px)/data.p.width;
+			var n4=n*4;
+			
+			while(m--){
+				var cx=data.c[m][0];
+				var	cy=data.c[m][1];
+				var im=[px,py,
+						data.p.data[n4],data.p.data[n4+1],data.p.data[n4+2]];
+				var cn=[cx,cy,
+						data.c[m][2],data.c[m][3],data.c[m][4]];
+				var d=dist(im,cn);
+				if(mind>d){mind=d;minc=m;}
+			}
+			
+			newCentroids[minc][0]+=px;
+			newCentroids[minc][1]+=py;
+			newCentroids[minc][2]+=data.p.data[n4];
+			newCentroids[minc][3]+=data.p.data[n4+1];
+			newCentroids[minc][4]+=data.p.data[n4+2];
+			newCentroids[minc][5]++;
+			
+			data.cID.data[n4]=data.c[minc][2];
+			data.cID.data[n4+1]=data.c[minc][3];
+			data.cID.data[n4+2]=data.c[minc][4];
+			data.cID.data[n4+3]=255;
+			
+		}
+		m=data.c.length;
+		while(m--){
+			if(newCentroids[m][5]!=0){
+				data.c[m][0]=newCentroids[m][0]/newCentroids[m][5];
+				data.c[m][1]=newCentroids[m][1]/newCentroids[m][5];
+
+				data.c[m][2]=newCentroids[m][2]/newCentroids[m][5];
+				data.c[m][3]=newCentroids[m][3]/newCentroids[m][5];
+				data.c[m][4]=newCentroids[m][4]/newCentroids[m][5];
+			}
+		}
+		g.clear();
+		g.c.putImageData(data.cID,0,0);
+		
+	},
+
+};
+
+</script>
+<body onload="g.setup()"></body></html>

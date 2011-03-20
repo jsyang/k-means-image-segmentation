@@ -1,0 +1,105 @@
+<html><script src=yang.js></script><script>
+var data={
+	pt:[],
+	c:[]
+};
+
+var g={
+	c:null,
+	dim:[0,0],
+	draw:function(){},
+	setup:function(){	// setup canvas
+		var body = document.body,
+	    html = document.documentElement;
+		var height=Math.max(body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight),
+			width=Math.max(body.scrollWidth, body.offsetWidth, html.clientWidth, html.scrollWidth, html.offsetWidth);
+		g.dim=[width,height];
+		document.body.innerHTML+="<canvas style='z-index:1;position:absolute;left:0;top:0;' width="+width+" height="+height+" id=c></canvas>";	
+		setTimeout("g.c=y.o('c').getContext('2d');g.c.lineWidth=2;g.c.strokeStyle='rgb(0,0,0)';",180);
+		window.onkeypress=function(e){
+			var key=!e.keyCode?e.which:e.keyCode;
+			switch(key){
+						case 49: kM.makeRandomPoints(1000);	//prompt("# data points",100));
+				break;	case 50: kM.makeCentroids(prompt("# of clusters",5));
+				break;	case 51: kM.assignToCentroids();
+				break;	case 52: kM.makeRandomPoints(); 
+				break;	default: window.status=e.keyCode;
+			}
+		}
+		window.onclick=function(e){
+			data.pt.push([e.pageX,e.pageY,-1]);
+			g.c.fillRect(e.pageX-4,e.pageY-4,8,8);
+		}
+	}
+};
+
+var kM={
+
+	d:function(p1,p2){				// Euclidean distance metric
+		var a=p2[0]-p1[0], b=p2[1]-p1[1];
+		return a*a + b*b;
+	},
+	
+	makeRandomPoints:function(n){	// make some data for us to play
+		var r=Math.random;
+		g.c.clearRect(0,0,g.dim[0],g.dim[1]);
+		while(n--){
+			var pt=[r()*g.dim[0],r()*g.dim[1],-1];
+			g.c.fillRect(pt[0],pt[1],8,8);
+			data.pt.push([pt[0],pt[1],-1]);
+		}
+	},
+	
+	makeCentroids:function(n){		// make starting centroids
+		var r=Math.random;
+		while(n--){
+			var c="rgb("+((r()*256)>>0)+","+((r()*256)>>0)+","+((r()*256)>>0)+")";
+			var pt=[r()*g.dim[0],r()*g.dim[1],c];
+			g.c.strokeStyle=c;
+			g.c.strokeRect(pt[0],pt[1],16,16);
+			data.c.push(pt);
+		}
+	},
+	
+	assignToCentroids:function(){
+		var n=data.pt.length;
+		var i=data.c.length; var newCentroids=[];
+		g.c.clearRect(0,0,g.dim[0],g.dim[1]);
+		
+		while(i--) newCentroids.push([0,0,0]);	// fill newCentroids with 0
+		while(n--){
+			var mind=Number.POSITIVE_INFINITY, minc=-1;
+			var m=data.c.length;
+			while(m--){
+				var d=kM.d(data.pt[n],data.c[m]);
+				if(mind>d){mind=d;minc=m;}
+			}
+			
+			newCentroids[minc][0]+=data.pt[n][0];
+			newCentroids[minc][1]+=data.pt[n][1];
+			newCentroids[minc][2]++;
+			
+			data.pt[n][2]=minc;
+			g.c.fillStyle=data.c[minc][2];
+			g.c.fillRect(data.pt[n][0],data.pt[n][1],8,8);
+		}
+		m=data.c.length;
+		while(m--){
+			if(newCentroids[m][2]==0){			// none of the data belonged to this class!
+// don't reassign the shitty clusters
+//				data.c[m][0]=Math.random()*g.dim[0];
+//				data.c[m][1]=Math.random()*g.dim[1];
+			}else{
+				data.c[m][0]=newCentroids[m][0]/newCentroids[m][2];
+				data.c[m][1]=newCentroids[m][1]/newCentroids[m][2];
+			}
+			g.c.strokeStyle=data.c[m][2];
+			g.c.strokeRect(data.c[m][0],data.c[m][1],16,16);
+		}
+		
+	},
+
+};
+
+</script>
+<body onload="g.setup()"></body></html>
